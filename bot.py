@@ -726,30 +726,79 @@ async def resolve_votes(bot,g):
 # ══════════════════════════════════════════════
 # WINNER
 # ══════════════════════════════════════════════
-async def announce_win(bot,g,winner,gn=""):
-    g.phase=Phase.GAME_OVER
-    if winner=="village": txt="🏆 انتهت!\n🎉 فاز الأبرياء!\n🛡️ القضاء على الأشرار.\n🌲 السلام عاد…"; gk="win_village"; wt=Team.VILLAGER
-    elif winner=="evil": txt="💀 انتهت!\n😈 فاز الأشرار!\n🩸 سيطر الظلام…\n🌑 لا أحد نجا…"; gk="win_evil"; wt=Team.EVIL
-    elif winner=="dracula": txt="🧛‍♂️ الليل لم ينتهِ…\n🩸 دراكولا انتصر…\n⚰️ مرحبًا بالظلام الأبدي."; gk="win_dracula"; wt=Team.DRACULA
-    elif winner=="grocer": txt=f"🧌 فاز {gn} وحده!!\n💀 الكل خسر…"; gk="win_evil"; wt=Team.SOLO
-    else: txt="🏁 انتهت!"; gk="win_village"; wt=None
+async def announce_win(bot, g, winner, gn=""):
+    g.phase = Phase.GAME_OVER
+    
+    # 1. تحديد نصوص الفوز بتنسيق HTML
+    if winner == "village": 
+        txt = "🏆 <b>انتهت الجولة!</b>\n🎉 <b>فاز الأبرياء!</b>\n🛡️ تم القضاء على الأشرار.\n🌲 عاد السلام إلى القصر."
+        gk = "win_village"; wt = Team.VILLAGER
+    elif winner == "evil": 
+        txt = "💀 <b>انتهت اللعبة!</b>\n😈 <b>فاز الأشرار!</b>\n🩸 سيطر الظلام…\n🌑 لم ينجُ أحد."
+        gk = "win_evil"; wt = Team.EVIL
+    elif winner == "dracula": 
+        txt = "🧛‍♂️ <b>الليل لم ينتهِ…</b>\n🩸 <b>دراكولا انتصر!</b>\n⚰️ مرحبًا بالظلام الأبدي."
+        gk = "win_dracula"; wt = Team.DRACULA
+    elif winner == "grocer": 
+        txt = f"🧌 <b>مفاجأة! فاز {gn} وحده!!</b>\n💀 الكل خسر…"
+        gk = "win_evil"; wt = Team.SOLO
+    else: 
+        txt = "🏁 <b>انتهت!</b>"
+        gk = "win_village"; wt = None
+
     for p in g.players.values():
-        if winner=="grocer":
-            update_stat(p.user_id,p.name,"wins" if p.role==RoleName.GROCER else "losses")
-        elif wt and p.team==wt: update_stat(p.user_id,p.name,"wins")
-        else: update_stat(p.user_id,p.name,"losses")
-        if p.alive: update_stat(p.user_id,p.name,"survived")
-        if p.kills>0: update_stat(p.user_id,p.name,"kills",p.kills)
-    mvp=g.calc_mvp(); mt=""
-    if mvp: update_stat(mvp.user_id,mvp.name,"mvp"); mt=f"\n\n⭐ *MVP:* {mvp.name} ({mvp.display_role})"
-    rt="\n".join(f"{'💀' if not p.alive else '✅'} {p.name} — {p.display_role}" for p in g.players.values())
-    # Log summary
-    ls=""
-    ke=[e for e in g.log_entries if e.action in ("مقتل","إعدام","حماية","تحويل","قمر دموي","هدنة")]
+        if winner == "grocer":
+            update_stat(p.user_id, p.name, "wins" if p.role == RoleName.GROCER else "losses")
+        elif wt and p.team == wt: update_stat(p.user_id, p.name, "wins")
+        else: update_stat(p.user_id, p.name, "losses")
+        if p.alive: update_stat(p.user_id, p.name, "survived")
+        if p.kills > 0: update_stat(p.user_id, p.name, "kills", p.kills)
+
+    # 2. تنسيق قسم الـ MVP بشكل احترافي
+    mvp = g.calc_mvp()
+    mt = ""
+    if mvp: 
+        update_stat(mvp.user_id, mvp.name, "mvp")
+        mt = f"\n\n<blockquote>⭐ <b>نجم الجولة (MVP):</b>\n👤 {mvp.name} — {mvp.display_role}</blockquote>"
+
+    # 3. تنسيق قائمة الأدوار
+    rt = "\n".join(f"{'💀' if not p.alive else '✅'} {p.name} — {p.display_role}" for p in g.players.values())
+    
+    # 4. تنسيق الملخص داخل Blockquote
+    ls = ""
+    ke = [e for e in g.log_entries if e.action in ("مقتل", "إعدام", "حماية", "تحويل", "قمر دموي", "هدنة")]
     if ke:
-        ls="\n\n📜 *ملخص:*\n"
-        for e in ke[-8:]: ls+=f"  🔹 ر{e.rnd}: {e.action}"; ls+=f" ({e.actor})" if e.actor else ""; ls+=f" → {e.target}" if e.target else ""; ls+="\n"
-    await sgif(bot,g.chat_id,gk,f"{txt}\n\n━━━━━━━━━━━━━━━━\n🎭 *الأدوار:*\n{rt}{mt}{ls}\n━━━━━━━━━━━━━━━━\n\n📊 /stats | 🏆 /leaderboard\n/start للعبة جديدة!",parse_mode="Markdown")
+        ls = "\n\n<blockquote>📜 <b>ملخص الأحداث:</b>\n"
+        for e in ke[-8:]: 
+            ls += f"🔹 ر{e.rnd}: {e.action}"
+            ls += f" ({e.actor})" if e.actor else ""
+            ls += f" ⬅️ {e.target}" if e.target else ""
+            ls += "\n"
+        ls += "</blockquote>"
+
+    # إضافة إرشادات بسيطة في الأسفل
+    footer = "\n\n💡 <i>لعبة جديدة: /start | إحصائيات: /stats | متصدرين: /leaderboard</i>"
+
+    # تجميع الرسالة النهائية
+    final_message = f"{txt}\n\n🎭 <b>الأدوار:</b>\n{rt}{mt}{ls}{footer}"
+
+    # أزرار تفاعلية أسفل الرسالة
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📊 إحصائياتي", callback_data="cmd_stats"), 
+         InlineKeyboardButton("🏆 المتصدرين", callback_data="cmd_leaderboard")]
+    ])
+
+    try:
+        await bot.send_animation(
+            chat_id=g.chat_id,
+            animation=GIFS.get(gk, GIFS["start"]),
+            caption=final_message,
+            parse_mode="HTML",
+            reply_markup=kb
+        )
+    except:
+        await ssend(bot, g.chat_id, final_message, parse_mode="HTML", reply_markup=kb)
+
     gm.remove(g.chat_id)
 
 # ── Router ──
@@ -757,6 +806,15 @@ async def cb_router(update,context):
     q=update.callback_query
     if not q or not q.data: return
     d=q.data
+    
+    # معالجة أزرار شاشة النهاية (Endgame Buttons)
+    if d == "cmd_stats":
+        await q.answer("💡 لمعرفة إحصائياتك، قم بإرسال الأمر /stats في المجموعة!", show_alert=True)
+        return
+    elif d == "cmd_leaderboard":
+        await q.answer("🏆 لمعرفة المتصدرين، قم بإرسال الأمر /leaderboard في المجموعة!", show_alert=True)
+        return
+
     if any(d.startswith(p) for p in ["nc_","ng_","nm_","nch_","nt_","np_","nd_","nn_","nfg_","nb_","nw1_","nw2_","ndr_"]): await night_cb(update,context)
     elif d.startswith("v_"): await vote_cb(update,context)
     elif d.startswith("join_") or d.startswith("sg_") or d.startswith("cg_"): await join_cb(update,context)
